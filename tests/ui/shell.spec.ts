@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 
 test.describe("start and modules", () => {
   test("every section opens without errors", async ({ app, page }) => {
-    for (const id of ["terminal", "k8s", "web", "alerts", "net", "ssh", "monitor", "code", "db", "notes", "tasks", "vault", "winbox", "settings"]) {
+    for (const id of ["terminal", "k8s", "web", "alerts", "net", "ssh", "rdp", "monitor", "code", "db", "notes", "tasks", "vault", "winbox", "settings"]) {
       await app.view(id);
       await expect(page.locator("section.view:not([hidden])")).toHaveCount(1);
     }
@@ -12,7 +12,7 @@ test.describe("start and modules", () => {
     test.use({ demo: { modules: null } });
     test("starts with the basic set of modules", async ({ app, page }) => {
       const shown = () => page.evaluate(() => [...document.querySelectorAll<HTMLElement>("#sidebar button[data-view]")].filter((b) => !b.hidden).map((b) => b.dataset.view).sort());
-      await expect.poll(shown).toEqual(["k8s", "notes", "settings", "ssh", "terminal", "vault"]);
+      await expect.poll(shown).toEqual(["k8s", "notes", "rdp", "settings", "ssh", "terminal", "vault"]);
     });
   });
 
@@ -56,7 +56,7 @@ test.describe("English", () => {
   test.use({ demo: { lang: "en" } });
   test("every section is translated", async ({ app, page }) => {
     const left: Record<string, string[]> = {};
-    for (const id of ["terminal", "k8s", "web", "alerts", "net", "ssh", "monitor", "code", "db", "notes", "tasks", "vault", "winbox", "settings"]) {
+    for (const id of ["terminal", "k8s", "web", "alerts", "net", "ssh", "rdp", "monitor", "code", "db", "notes", "tasks", "vault", "winbox", "settings"]) {
       await app.view(id);
       await page.waitForTimeout(300);
       const cyr = await page.locator("section.view:not([hidden])").evaluate((el) => {

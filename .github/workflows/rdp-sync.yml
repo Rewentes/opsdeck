@@ -1,0 +1,39 @@
+name: Sync upstream into RDP
+on:
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: rdp-upstream-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    if: github.repository == 'Rewentes/opsdeck'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/rdp
+          fetch-depth: 0
+      - name: Merge upstream without overwriting local changes
+        id: sync
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          before=$(git rev-parse HEAD)
+          scripts/sync-rdp.sh
+          after=$(git rev-parse HEAD)
+          if [ "$before" != "$after" ]; then echo 'changed=true' >> "$GITHUB_OUTPUT"; fi
+          echo "Upstream sync completed at $after" >> "$GITHUB_STEP_SUMMARY"
+      # GITHUB_TOKEN pushes do not trigger push workflows. Dispatch explicitly.
+      - name: Build the updated RDP branch
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run rdp-arch.yml --repo "$GITHUB_REPOSITORY" --ref feature/rdp
+      - name: Report blocked synchronization
+        if: failure()
+        run: echo 'Synchronization blocked. No forced update or automatic conflict resolution was attempted. See failed step.' >> "$GITHUB_STEP_SUMMARY"

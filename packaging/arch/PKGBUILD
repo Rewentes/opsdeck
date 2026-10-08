@@ -1,0 +1,21 @@
+# Package the binary built on Arch by rdp-arch.yml (or scripts/build-arch.sh).
+pkgname=opsdeck-rdp
+pkgver=0.6.1.rdp.1
+pkgrel=1
+pkgdesc='OpsDeck with FreeRDP 3 profiles, KeePass and keyring'
+arch=('x86_64')
+url='https://github.com/Rewentes/opsdeck'
+license=('MIT')
+depends=('gtk3' 'webkit2gtk-4.1' 'freerdp' 'libayatana-appindicator' 'xdg-utils')
+optdepends=('gnome-keyring: keyring password storage' 'kwallet: alternative Secret Service provider' 'xorg-xwayland: RDP windows on Wayland')
+provides=('opsdeck')
+conflicts=('opsdeck' 'opsdeck-bin' 'opsdeck-git')
+options=('!strip')
+source=('opsdeck' 'opsdeck.desktop' 'opsdeck.png' 'LICENSE')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+package() {
+  install -Dm755 "$srcdir/opsdeck" "$pkgdir/usr/bin/opsdeck"
+  install -Dm644 "$srcdir/opsdeck.desktop" "$pkgdir/usr/share/applications/opsdeck.desktop"
+  install -Dm644 "$srcdir/opsdeck.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/opsdeck.png"
+  install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

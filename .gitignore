@@ -4,3 +4,13 @@ src-tauri/target/
 src-tauri/gen/
 test-results/
 playwright-report/
+# Personal RDP builds and signing material
+rdp-artifacts/
+packaging/arch/opsdeck
+packaging/arch/opsdeck.png
+packaging/arch/LICENSE
+packaging/arch/src/
+packaging/arch/pkg/
+packaging/arch/*.pkg.tar.*
+*.key
+*.key.pub

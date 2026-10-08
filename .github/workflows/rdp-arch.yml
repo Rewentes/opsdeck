@@ -1,0 +1,168 @@
+name: RDP Arch build
+on:
+  push:
+    branches: [feature/rdp]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rdp-user-build
+  cancel-in-progress: true
+jobs:
+  plan:
+    if: github.repository == 'Rewentes/opsdeck'
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha: ${{ steps.version.outputs.sha }}
+      signed: ${{ steps.version.outputs.signed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/rdp
+      - id: version
+        env:
+          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          base=$(node -p 'require("./package.json").version.split("-")[0]')
+          echo "version=$base-rdp.$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          if [ -n "$SIGNING_KEY" ]; then echo 'signed=true' >> "$GITHUB_OUTPUT"; else echo 'signed=false' >> "$GITHUB_OUTPUT"; fi
+  arch:
+    needs: plan
+    runs-on: ubuntu-24.04
+    container: archlinux:base-devel
+    defaults:
+      run:
+        shell: bash
+    env:
+      OPSDECK_PACKAGE_FORMAT: arch
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - name: Arch dependencies
+        run: pacman -Syu --noconfirm git nodejs npm rust gtk3 webkit2gtk-4.1 libayatana-appindicator freerdp xdg-utils
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: src-tauri -> target
+          key: rdp-arch
+      - name: Version, frontend and tests
+        env:
+          RDP_VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          npm ci
+          node scripts/rdp-version.mjs "$RDP_VERSION"
+          npm run build
+          npm test
+          npm run i18n:check
+          npm run check:links
+          cargo test --manifest-path src-tauri/Cargo.toml --lib
+          cargo build --release --manifest-path src-tauri/Cargo.toml --locked
+      - name: Native Arch package
+        run: |
+          install -m755 src-tauri/target/release/opsdeck packaging/arch/opsdeck
+          install -m644 src-tauri/icons/128x128.png packaging/arch/opsdeck.png
+          install -m644 LICENSE packaging/arch/LICENSE
+          useradd -m builder
+          chown -R builder:builder packaging/arch
+          su builder -s /bin/bash -c "cd '$PWD/packaging/arch' && makepkg --nodeps --force"
+          mkdir rdp-artifacts
+          cp packaging/arch/*.pkg.tar.zst rdp-artifacts/
+      - name: Sign native package (detached Tauri signature, not pacman PGP)
+        if: needs.plan.outputs.signed == 'true'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+          RDP_VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          for package in rdp-artifacts/*.pkg.tar.zst; do npx tauri signer sign --app-version "$RDP_VERSION" "$package"; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rdp-arch
+          path: rdp-artifacts/*
+          if-no-files-found: error
+  ui:
+    needs: plan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+  appimage:
+    needs: plan
+    if: needs.plan.outputs.signed == 'true'
+    runs-on: ubuntu-22.04
+    env:
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libayatana-appindicator3-dev librsvg2-dev libfuse2 patchelf
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: src-tauri -> target
+          key: rdp-appimage
+      - run: npm ci
+      - name: Signed AppImage for automatic updates
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+          RDP_VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          node scripts/rdp-version.mjs "$RDP_VERSION"
+          npx tauri build --bundles appimage --config src-tauri/tauri.release.conf.json
+          test -n "$(find src-tauri/target/release/bundle/appimage -name '*.AppImage.sig' -print -quit)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rdp-appimage
+          path: src-tauri/target/release/bundle/appimage/*.AppImage*
+          if-no-files-found: error
+  publish:
+    needs: [plan, arch, ui, appimage]
+    if: always() && needs.arch.result == 'success' && needs.ui.result == 'success' && (needs.appimage.result == 'success' || needs.appimage.result == 'skipped')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rdp-*
+          path: rdp-artifacts
+          merge-multiple: true
+      - name: Publish only tested user builds
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RDP_VERSION: ${{ needs.plan.outputs.version }}
+          RDP_SHA: ${{ needs.plan.outputs.sha }}
+          RDP_SIGNED: ${{ needs.plan.outputs.signed }}
+        run: |
+          (cd rdp-artifacts && sha256sum *.pkg.tar.zst > SHA256SUMS)
+          cat > rdp-artifacts/RELEASE.md <<EOF_NOTES
+          Personal OpsDeck RDP build from $RDP_SHA.
+          Arch: install opsdeck-rdp with sudo pacman -U. Requires freerdp and X11/XWayland.
+          Native packages update through pacman; Tauri automatic updates use the signed AppImage.
+          Detached native .sig files are Tauri signatures, not pacman PGP signatures.
+          EOF_NOTES
+          gh release create "v$RDP_VERSION" rdp-artifacts/* --repo "$GITHUB_REPOSITORY" --target "$RDP_SHA" --title "OpsDeck RDP $RDP_VERSION (Arch)" --notes-file rdp-artifacts/RELEASE.md --draft
+          if [ "$RDP_SIGNED" = true ]; then scripts/latest-json.sh "v$RDP_VERSION" "$GITHUB_REPOSITORY"; fi
+          gh release edit "v$RDP_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --latest

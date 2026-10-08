@@ -12,6 +12,7 @@ import { mountTasks } from "./modules/tasks";
 import { mountMikrotik } from "./modules/mikrotik";
 import { mountMonitor } from "./modules/monitor";
 import { mountSettings } from "./modules/settings";
+import { mountRdp } from "./modules/rdp";
 import { mountSsh } from "./modules/ssh";
 import { mountAlerts } from "./modules/alerts";
 import { checkUpdates } from "./modules/updates";
@@ -35,6 +36,7 @@ const views: View[] = [
   { id: "web", svg: icon("web", 20), title: "Grafana · ArgoCD · GitLab", mount: mountConnectors },
   { id: "alerts", svg: icon("bell", 20), title: "Алерты", mount: mountAlerts },
   { id: "net", svg: icon("net", 20), title: "Сеть и DNS", mount: mountNetwork },
+  { id: "rdp", svg: icon("server", 20), title: "RDP", mount: mountRdp },
   { id: "ssh", svg: icon("server", 20), title: "SSH", mount: mountSsh },
   { id: "monitor", svg: icon("activity", 20), title: "Мониторинг хостов", mount: mountMonitor },
   { id: "code", svg: icon("code", 20), title: "IDE: код и git", mount: mountCode },
@@ -56,7 +58,7 @@ const panes = new Map<string, HTMLElement>();
 
 // ----- modules: which views are on (⊞ menu in the sidebar); off ones are not even mounted -----
 const MODULES_KEY = "opsdeck.modules";
-const DEFAULT_MODULES = ["terminal", "k8s", "ssh", "vault", "notes"];
+const DEFAULT_MODULES = ["terminal", "k8s", "ssh", "rdp", "vault", "notes"];
 const optional = views.filter((v) => !v.bottom);
 const enabled = new Set<string>(((): string[] => {
   try {

@@ -189,6 +189,7 @@
     win_shells: [], wt_settings: JSON.stringify({ profiles: {}, schemes: [{ name: "Demo WT", background: "#101820", foreground: "#e0e0e0", purple: "#aa66ff", cursorColor: "#ffcc00" }] }),
     app_version: "0.5.0", set_lang: null, log_ui: null, settings_get: settings, settings_detect: { keepass: [], obsidian: [], winbox: [] }, logs_path: "/home/demo/.local/share/opsdeck/logs",
     k8s_contexts: [ctx, ctx2], k8s_system_contexts: [], k8s_prefs_get: { hidden: [], readonly: [`${ctx.file}|prod-eu`] }, k8s_crds: [], k8s_metrics: usage, k8s_helm_releases: [], k8s_object_events: [],
+    rdp_list: [], rdp_sessions: [], rdp_status: { available: true, version: "FreeRDP version 3.32.1" }, rdp_connect: { id: "session-1", profile_id: "rdp-1", name: "win-prod", pid: 1234 },
     ssh_list: { hosts: sshHosts, config: sshConfig }, ssh_keys: ["~/.ssh/id_ed25519"], ssh_local_user: "demo",
     ssh_connect: { program: "ssh", args: ["-J", "bastion", "deploy@198.51.100.11"], password_copied: false },
     kp_status: { unlocked: true, path: "/home/demo/Passwords.kdbx", keyfile: "", entries: kpEntries.length, lock_minutes: 0, keep_open: true }, kp_entries: kpEntries,

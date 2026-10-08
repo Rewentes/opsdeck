@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=OpsDeck RDP
+Comment=DevOps cockpit with FreeRDP 3
+Exec=opsdeck
+Icon=opsdeck
+Terminal=false
+Type=Application
+Categories=Development;System;

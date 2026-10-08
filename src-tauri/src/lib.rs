@@ -22,6 +22,7 @@ mod pty;
 mod settings;
 mod snippets;
 mod ssh;
+mod rdp;
 mod sysmon;
 mod store;
 mod tasks;
@@ -60,6 +61,7 @@ pub fn run() {
         .manage(pty::PtyState::default())
         .manage(tools::ToolState::default())
         .manage(k8s::K8sState::default())
+        .manage(rdp::RdpState::default())
         .manage(keepass::KeepassState::default())
         .manage(ide::IdeState::default())
         .manage(alerts::AlertsState::default())
@@ -239,6 +241,8 @@ pub fn run() {
             alerts::alerts_mute,
             alerts::alerts_test_source,
             alerts::alerts_sources,
+            rdp::rdp_list, rdp::rdp_save, rdp::rdp_delete, rdp::rdp_group_rename,
+            rdp::rdp_status, rdp::rdp_connect, rdp::rdp_sessions, rdp::rdp_disconnect,
             ssh::ssh_list,
             ssh::ssh_keys,
             ssh::ssh_save,

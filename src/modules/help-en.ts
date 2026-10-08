@@ -140,6 +140,7 @@ export const HELP_EN: Record<string, { title: string; html: string }> = {
       <h4>How metrics are collected</h4>
       <p>Over ssh without a password: a key login (ssh-agent, IdentityFile) or a session already open in OpsDeck is needed. The connection is kept for 2 minutes and reused, so the next poll is cheap. /proc and df are read — Linux only. If a host has never been connected to, accept its key: connect once from the terminal.</p>`,
   },
+  rdp: { title: "RDP · FreeRDP 3", html: `<p>Install <code>freerdp</code> on Arch. Requires xfreerdp3 and X11 or XWayland. Profiles support groups, OS keyring and unlocked KeePass. Passwords travel over stdin only. Strict certificate validation is the default. Each connection opens a separate window; Disconnect closes it. Closing OpsDeck leaves the FreeRDP windows running.</p>` },
   ssh: {
     title: "SSH",
     html: `

@@ -9,7 +9,10 @@ use tauri::{AppHandle, Emitter};
 use tauri_plugin_updater::UpdaterExt;
 
 /// GitHub repository the releases come from (same as the endpoint in tauri.conf.json).
-const REPO: &str = "LeoAlecksey/opsdeck";
+const REPO: &str = "Rewentes/opsdeck";
+
+fn native_arch() -> bool { option_env!("OPSDECK_PACKAGE_FORMAT") == Some("arch") }
+fn arch_update_message() -> String { "Пакет Arch обновляется через pacman: скачайте новый opsdeck-rdp из Releases форка и установите sudo pacman -U <пакет>. Автообновление Tauri доступно для AppImage.".into() }
 
 #[derive(Serialize)]
 pub struct UpdateInfo {
@@ -82,6 +85,7 @@ fn check_err(e: tauri_plugin_updater::Error) -> String {
 
 #[tauri::command]
 pub async fn update_check(app: AppHandle) -> Result<UpdateInfo, String> {
+    if native_arch() { return Err(arch_update_message()); }
     let current = app.package_info().version.to_string();
     // offer anything different from the installed version; decide below whether it is an update
     let update = app.updater_builder().version_comparator(|cur, remote| remote.version != cur).build().map_err(err)?.check().await.map_err(check_err)?;
@@ -104,8 +108,10 @@ pub async fn update_check(app: AppHandle) -> Result<UpdateInfo, String> {
 }
 
 fn semver_gt(a: &str, b: &str) -> bool {
-    let parse = |s: &str| -> Vec<u64> { s.split(['.', '-', '+']).take(3).map(|p| p.parse().unwrap_or(0)).collect() };
-    parse(a) > parse(b)
+    match (semver::Version::parse(a), semver::Version::parse(b)) {
+        (Ok(a), Ok(b)) => a > b,
+        _ => false,
+    }
 }
 
 #[derive(Serialize)]
@@ -136,7 +142,7 @@ pub async fn releases_list() -> Result<Vec<ReleaseInfo>, String> {
             date: g.published_at,
             notes: g.body.unwrap_or_default(),
             withdrawn: g.prerelease,
-            installable: g.assets.iter().any(|a| a.name == "latest.json"),
+            installable: !native_arch() && g.assets.iter().any(|a| a.name == "latest.json"),
         })
         .collect())
 }
@@ -145,6 +151,7 @@ pub async fn releases_list() -> Result<Vec<ReleaseInfo>, String> {
 /// `version` = install exactly that release (also older: rollback); none = the offered update.
 #[tauri::command]
 pub async fn update_install(app: AppHandle, version: Option<String>) -> Result<(), String> {
+    if native_arch() { return Err(arch_update_message()); }
     let mut builder = app.updater_builder().version_comparator(|cur, remote| remote.version != cur);
     if let Some(v) = &version {
         if !v.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') {
@@ -181,6 +188,8 @@ pub async fn update_install(app: AppHandle, version: Option<String>) -> Result<(
 mod tests {
     #[test]
     fn semver() {
+        assert!(super::semver_gt("0.6.1-rdp.10", "0.6.1-rdp.9"));
+        assert!(!super::semver_gt("0.6.1-rdp.9", "0.6.1-rdp.10"));
         assert!(super::semver_gt("0.10.0", "0.9.9"));
         assert!(super::semver_gt("1.0.0", "0.3.0"));
         assert!(!super::semver_gt("0.2.0", "0.3.0"));
