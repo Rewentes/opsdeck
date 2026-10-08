@@ -61,7 +61,7 @@ jobs:
           npm run i18n:check
           npm run check:links
           cargo test --manifest-path src-tauri/Cargo.toml --lib
-          cargo build --release --manifest-path src-tauri/Cargo.toml --locked
+          cargo build --release --features tauri/custom-protocol --manifest-path src-tauri/Cargo.toml --locked
       - name: Native Arch package
         run: |
           install -m755 src-tauri/target/release/opsdeck packaging/arch/opsdeck
