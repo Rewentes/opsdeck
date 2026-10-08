@@ -36,7 +36,7 @@ const views: View[] = [
   { id: "web", svg: icon("web", 20), title: "Grafana · ArgoCD · GitLab", mount: mountConnectors },
   { id: "alerts", svg: icon("bell", 20), title: "Алерты", mount: mountAlerts },
   { id: "net", svg: icon("net", 20), title: "Сеть и DNS", mount: mountNetwork },
-  { id: "rdp", svg: icon("server", 20), title: "RDP", mount: mountRdp },
+  { id: "rdp", svg: icon("rdp", 20), title: "RDP", mount: mountRdp },
   { id: "ssh", svg: icon("server", 20), title: "SSH", mount: mountSsh },
   { id: "monitor", svg: icon("activity", 20), title: "Мониторинг хостов", mount: mountMonitor },
   { id: "code", svg: icon("code", 20), title: "IDE: код и git", mount: mountCode },
