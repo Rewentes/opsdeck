@@ -77,7 +77,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
           RDP_VERSION: ${{ needs.plan.outputs.version }}
         run: |
-          for package in rdp-artifacts/*.pkg.tar.zst; do npx tauri signer sign --app-version "$RDP_VERSION" "$package"; done
+          for package in rdp-artifacts/*.pkg.tar.zst; do
+            npx tauri signer sign --app-version "$RDP_VERSION" "$package"
+            mv "$package.sig" "$package.tauri.sig"
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: rdp-arch
@@ -161,7 +164,7 @@ jobs:
           Personal OpsDeck RDP build from $RDP_SHA.
           Arch: install opsdeck-rdp with sudo pacman -U. Requires freerdp and X11/XWayland.
           Native packages update through pacman; Tauri automatic updates use the signed AppImage.
-          Detached native .sig files are Tauri signatures, not pacman PGP signatures.
+          Detached native .tauri.sig files are Tauri signatures, not pacman PGP signatures.
           EOF_NOTES
           gh release create "v$RDP_VERSION" rdp-artifacts/* --repo "$GITHUB_REPOSITORY" --target "$RDP_SHA" --title "OpsDeck RDP $RDP_VERSION (Arch)" --notes-file rdp-artifacts/RELEASE.md --draft
           if [ "$RDP_SIGNED" = true ]; then scripts/latest-json.sh "v$RDP_VERSION" "$GITHUB_REPOSITORY"; fi
