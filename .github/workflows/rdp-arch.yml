@@ -48,6 +48,8 @@ jobs:
         with:
           workspaces: src-tauri -> target
           key: rdp-arch
+      - name: Trust the mounted checkout inside the Arch container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Version, frontend and tests
         env:
           RDP_VERSION: ${{ needs.plan.outputs.version }}
