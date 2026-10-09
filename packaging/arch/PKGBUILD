@@ -1,7 +1,7 @@
 # Package the binary built on Arch by rdp-arch.yml (or scripts/build-arch.sh).
 pkgname=opsdeck-rdp
-pkgver=0.6.1.rdp.1
-pkgrel=2
+pkgver=0.6.2.rdp.1
+pkgrel=1
 pkgdesc='OpsDeck with FreeRDP 3 profiles, KeePass and keyring'
 arch=('x86_64')
 url='https://github.com/Rewentes/opsdeck'
