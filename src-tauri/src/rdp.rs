@@ -241,7 +241,7 @@ pub fn rdp_connect(
     validate(&p)?;
     let (user, pass) = match p.auth.as_str() {
         "keepass" => {
-            let (u, s) = keepass::credentials(&kp, &p.keepass_entry)?;
+            let (u, s) = keepass::credentials(&kp, &p.keepass_entry, keepass::Use::User)?;
             (
                 if p.user.is_empty() { u } else { p.user.clone() },
                 Zeroizing::new(s),
