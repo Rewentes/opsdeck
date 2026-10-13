@@ -2,7 +2,7 @@
 
 Upstream: https://github.com/LeoAlecksey/opsdeck (master).
 Personal version: https://github.com/Rewentes/opsdeck/tree/feature/rdp.
-Current upstream: `775a880` (0.6.2), integrated on 2026-10-09 with RDP and its monitor-arrow icon preserved.
+Current upstream: `ac4fcb7` (0.7.0), integrated on 2026-10-13 with RDP and its monitor-arrow icon preserved.
 
 Initial base: `95b3d47266b337e6b354bdaf84f513c79a999742`, upstream 0.6.1, 2026-10-08.
 
