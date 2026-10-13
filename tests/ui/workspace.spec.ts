@@ -298,7 +298,11 @@ test.describe("other sections", () => {
       w.__embed = { now: 0, max: 0 };
       w.__DEMO_OVERRIDES.web_embed_show = async () => {
         w.__embed.max = Math.max(w.__embed.max, ++w.__embed.now);
-        await new Promise((r) => setTimeout(r, 400));
+        // Hold the first show until the dialog is open, independent of runner speed.
+        if (!w.__embed.started) {
+          w.__embed.started = true;
+          await new Promise<void>((resolve) => { w.__embed.release = resolve; });
+        }
         w.__embed.now--;
       };
     });
@@ -308,6 +312,7 @@ test.describe("other sections", () => {
     await page.setViewportSize({ width: 1300, height: 860 });
     await page.evaluate(() => window.dispatchEvent(new Event("overlay-open")));
     const hides = (await app.calls("web_embed_hide")).length;
+    await page.evaluate(() => (window as any).__embed.release());
     await expect.poll(async () => (await app.calls("web_embed_hide")).length, { message: "the page that finished showing under a dialog is hidden again" }).toBeGreaterThan(hides);
     expect(await page.evaluate(() => (window as any).__embed.max), "never two web_embed_show at once").toBe(1);
     await page.evaluate(() => window.dispatchEvent(new Event("overlay-close")));

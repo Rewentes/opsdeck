@@ -1,18 +1,17 @@
-# Validation — upstream 0.6.2 integration (2026-10-09)
+# Validation — upstream 0.7.0 integration (2026-10-13)
 
-Upstream master: `775a880` (0.6.2). The merge preserved the RDP module, monitor-arrow icon, personal update endpoint and existing signing public key. One conflict in `src/styles.css` was resolved by retaining both the RDP styles and upstream notes/Kubernetes styles.
+Upstream master: `ac4fcb7` (0.7.0). The merge preserved the RDP module, monitor-arrow icon, personal update endpoint and existing signing public key. The build.rs conflict was resolved by retaining the package-format rebuild trigger and the upstream Windows manifest fix. RDP KeePass reads now use `Use::User`, matching the new upstream activity tracking.
 
-Validated locally on the user's Arch Linux x86_64 environment:
+Validated locally on Arch Linux x86_64 with upstream Rust 1.93.1:
 
-- `npm run build`: TypeScript and production Vite bundle passed.
-- `npm test`: 41 unit tests passed.
-- `cargo test --lib`: 78 tests passed, including RDP option generation, IPv6, credential newline/NUL rejection and RDP build version ordering.
-- `cargo clippy --lib --tests -- -D warnings`: passed.
-- Full Playwright suite: 114 browser tests passed, including RDP, English translation and the new upstream Kubernetes/KeePass behavior.
-- Translation check: 3,729 texts checked, 1,505 dictionary entries.
-- Author-link check, workflow YAML parsing and shell syntax checks passed.
-- RDP module registration, selected icon and personal signing key/endpoint were explicitly checked after the merge.
-
-The initial fork setup also validated FreeRDP 3.32.1's stdin argument protocol and safe synchronization using temporary Git repositories: successful merges preserved RDP changes, while conflicts changed neither remote branch.
+- TypeScript and production Vite build passed.
+- 88 unit tests passed.
+- 92 Rust tests passed; 4 Passbolt live integration tests require an external server and were ignored by upstream.
+- All 140 Playwright tests passed, including RDP and new upstream screens.
+- The web-panel overlay test now explicitly controls when the first native show finishes, replacing a timing assumption that failed under parallel load. Its assertions remain intact.
+- Translation check: 4,822 texts checked, 1,809 dictionary entries.
+- Author-link check passed (196 files).
+- RDP registration, selected icon and personal signing key/endpoint checked after merge.
+- GitHub upstream synchronization passed after the manual conflict resolution; fork master remains an exact upstream copy.
 
 No remote RDP server or credentials were supplied. Live Windows authentication and server-specific behavior remain unverified.
