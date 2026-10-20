@@ -14,7 +14,7 @@ test.describe("Enter in dialogs means the main action", () => {
 
   test("an SSH host is saved by Enter", async ({ app, page }) => {
     await app.view("ssh");
-    await page.locator("[data-a=add]").first().click();
+    await page.locator("section.view:not([hidden]) [data-a=add]").first().click();
     const dlg = page.locator("dialog.ssh-dialog");
     await dlg.locator("input[name=name]").fill("db-2");
     await dlg.locator("input[name=host]").fill("198.51.100.30");

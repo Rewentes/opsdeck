@@ -1,17 +1,19 @@
-# Validation — upstream 0.7.0 integration (2026-10-13)
+# Validation — upstream 0.8.0 integration (2026-10-21)
 
-Upstream master: `ac4fcb7` (0.7.0). The merge preserved the RDP module, monitor-arrow icon, personal update endpoint and existing signing public key. The build.rs conflict was resolved by retaining the package-format rebuild trigger and the upstream Windows manifest fix. RDP KeePass reads now use `Use::User`, matching the new upstream activity tracking.
+Upstream master: `089e003` (0.8.0, plus website changes after the release tag). Existing remote 0.7.1 synchronization was fast-forwarded before merging; no remote work was overwritten.
 
-Validated locally on Arch Linux x86_64 with upstream Rust 1.93.1:
+The merge retained RDP and the new SFTP/Yandex Cloud modules in registration and test fixtures. The previous 0.7.1 build failed because an SSH dialog test selected the hidden RDP add button; its selector is now scoped to the active section. No application behavior was bypassed.
 
-- TypeScript and production Vite build passed.
-- 88 unit tests passed.
-- 92 Rust tests passed; 4 Passbolt live integration tests require an external server and were ignored by upstream.
-- All 140 Playwright tests passed, including RDP and new upstream screens.
-- The web-panel overlay test now explicitly controls when the first native show finishes, replacing a timing assumption that failed under parallel load. Its assertions remain intact.
-- Translation check: 4,822 texts checked, 1,809 dictionary entries.
-- Author-link check passed (196 files).
-- RDP registration, selected icon and personal signing key/endpoint checked after merge.
-- GitHub upstream synchronization passed after the manual conflict resolution; fork master remains an exact upstream copy.
+Validated locally on Arch Linux x86_64 with Rust 1.93.1:
 
-No remote RDP server or credentials were supplied. Live Windows authentication and server-specific behavior remain unverified.
+- Production TypeScript/Vite build passed.
+- 98 unit tests passed.
+- 130 Rust tests passed; 4 external-server Passbolt tests remain ignored as in upstream.
+- Clippy (`--lib --tests -- -D warnings`) passed.
+- All 205 Playwright browser tests passed, including RDP and the SSH Enter regression.
+- Translation check passed: 5,413 texts, 2,020 dictionary entries.
+- Author-link check passed (216 files).
+- RDP uses the shared upstream atomic JSON persistence and backup recovery.
+- Existing signing key, fork updater endpoint, RDP icon and password pipe transport were retained.
+
+No Windows server or credentials were supplied. Live RDP authentication and server-specific behavior remain unverified.
