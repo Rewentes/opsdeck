@@ -37,6 +37,8 @@ pub struct RdpProfile {
     pub admin: bool,
     pub cert: String,
     pub scale: u16,
+    #[serde(default)]
+    pub netbird_profile: String,
 }
 #[derive(Clone, Serialize)]
 pub struct Session {
@@ -54,6 +56,9 @@ fn text(s: &str) -> bool {
     s.len() <= 1024 && !s.chars().any(char::is_control)
 }
 fn validate(p: &RdpProfile) -> Result<(), String> {
+    if !p.netbird_profile.is_empty() && !crate::netbird::valid_handle(&p.netbird_profile) {
+        return Err("Некорректный ID профиля NetBird".into());
+    }
     if !store::valid_id(&p.id) || p.name.trim().is_empty() || !text(&p.name) || !text(&p.group) {
         return Err("Некорректное имя или ID профиля".into());
     }
@@ -226,10 +231,11 @@ fn payload(p: &RdpProfile, user: &str, password: &str) -> Result<Zeroizing<Strin
     Ok(input)
 }
 #[tauri::command]
-pub fn rdp_connect(
+pub async fn rdp_connect(
     app: AppHandle,
-    kp: State<KeepassState>,
-    state: State<RdpState>,
+    kp: State<'_, KeepassState>,
+    state: State<'_, RdpState>,
+    netbird: State<'_, crate::netbird::NetbirdState>,
     id: String,
     password: Option<String>,
 ) -> Result<Session, String> {
@@ -239,6 +245,9 @@ pub fn rdp_connect(
         .find(|p| p.id == id)
         .ok_or("Профиль не найден")?;
     validate(&p)?;
+    let _vpn_guard = if p.netbird_profile.is_empty() { None } else {
+        Some(crate::netbird::prepare(&netbird, &p.netbird_profile).await?)
+    };
     let (user, pass) = match p.auth.as_str() {
         "keepass" => {
             let (u, s) = keepass::credentials(&kp, &p.keepass_entry, keepass::Use::User)?;

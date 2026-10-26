@@ -1,19 +1,18 @@
-# Validation — upstream 0.8.0 integration (2026-10-21)
+# Validation — OpsDeck 0.8.2, NetBird and RDP (2026-10-26)
 
-Upstream master: `089e003` (0.8.0, plus website changes after the release tag). Existing remote 0.7.1 synchronization was fast-forwarded before merging; no remote work was overwritten.
+Upstream master: `c17df05` (0.8.2). Merge conflicts in module registration and UI fixtures retained both RDP/NetBird and upstream AI-agent/popout behavior.
 
-The merge retained RDP and the new SFTP/Yandex Cloud modules in registration and test fixtures. The previous 0.7.1 build failed because an SSH dialog test selected the hidden RDP add button; its selector is now scoped to the active section. No application behavior was bypassed.
-
-Validated locally on Arch Linux x86_64 with Rust 1.93.1:
+Local validation on Arch x86_64, Rust 1.93.1:
 
 - Production TypeScript/Vite build passed.
-- 98 unit tests passed.
-- 130 Rust tests passed; 4 external-server Passbolt tests remain ignored as in upstream.
+- 125 unit tests passed.
+- 163 Rust tests passed; 4 external-server Passbolt tests remain ignored upstream.
 - Clippy (`--lib --tests -- -D warnings`) passed.
-- All 205 Playwright browser tests passed, including RDP and the SSH Enter regression.
-- Translation check passed: 5,413 texts, 2,020 dictionary entries.
-- Author-link check passed (216 files).
-- RDP uses the shared upstream atomic JSON persistence and backup recovery.
-- Existing signing key, fork updater endpoint, RDP icon and password pipe transport were retained.
+- 242 Playwright tests passed, including 13 focused NetBird/RDP tests.
+- Translation check passed (5,798 texts / 2,194 dictionary entries); author-link check passed. NetBird UI and errors have English translations.
+- The existing upstream interrupted-download test fixture was synchronized: it holds the first four partial responses open until all four requests arrive. This prevents early cancellation from misclassifying resumed requests; download implementation and assertions are unchanged.
+- NetBird tests cover duplicate profile names with stable IDs, URL/argument validation, missing/unauthenticated profiles, readiness checks, CLI failure output sanitization, connection reuse, UI confirmations, disabled duplicate operations, optional/removed RDP bindings and failure reporting. A temporary fake CLI exercises the real process adapter without altering the developer's VPN.
+- Native NetBird 0.79.0 help/profile/status commands were inspected read-only; no live VPN switch, profile mutation or browser authentication was performed during development.
+- Existing signing key, fork updater endpoint, RDP icon, stdin-only password transport and atomic settings persistence are retained.
 
-No Windows server or credentials were supplied. Live RDP authentication and server-specific behavior remain unverified.
+No Windows RDP server or test VPN account was supplied. Live SSO and Windows authentication remain unverified.

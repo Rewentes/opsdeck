@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { confirmNetbird, netbirdSnapshot } from "./netbird";
 import { helpBtn } from "./help";
 import { icon } from "./icons";
 import { kpEntries, kpStatus, pickEntry } from "./keepass";
@@ -7,7 +8,7 @@ import { registerProvider } from "./palette";
 import { ask, esc, overlay, toast } from "./ui";
 
 type Profile = {
-  id: string; name: string; group: string; host: string; port: number; user: string; domain: string;
+  id: string; name: string; netbird_profile?: string; group: string; host: string; port: number; user: string; domain: string;
   auth: string; keepass_entry: string; width: number; height: number; scale: number; cert: string;
   fullscreen: boolean; multimon: boolean; dynamic_resolution: boolean; clipboard: boolean; audio: boolean; admin: boolean;
 };
@@ -37,15 +38,20 @@ function passwordPrompt(name: string): Promise<string | null> {
     dlg.querySelector("input")!.focus();
   });
 }
+const connecting = new Set<string>();
 async function connect(p: Profile) {
+  if (connecting.has(p.id)) return;
+  connecting.add(p.id);
   let password: string | null = null;
   try {
+    if (p.netbird_profile && !await confirmNetbird(p.netbird_profile)) return;
     if (p.auth === "prompt") { password = await passwordPrompt(p.name); if (password === null) return; }
+    if (p.netbird_profile) toast("NetBird подключается. При необходимости подтвердите вход в браузере");
     await invoke<Session>("rdp_connect", { id: p.id, password });
     window.dispatchEvent(new Event("rdp-sessions-changed"));
     toast("FreeRDP запущен отдельным окном");
   } catch (e) { toast(String(e), "err"); }
-  finally { password = null; }
+  finally { password = null; connecting.delete(p.id); }
 }
 registerProvider(async () => (await invoke<Profile[]>("rdp_list")).map((p) => ({ group: "RDP", title: `RDP: ${p.name}`, hint: `${p.group ? p.group + " · " : ""}${p.host}:${p.port}`, run: () => connect(p) })));
 
@@ -69,6 +75,8 @@ export function mountRdp(root: HTMLElement) {
       <label>Сертификат <select name="cert"><option value="deny">Строгая проверка (рекомендуется)</option><option value="tofu">Доверять первому сертификату (TOFU)</option><option value="ignore">Не проверять (небезопасно)</option></select></label>
       <p class="muted">TOFU доверяет первому подключению. Без проверки возможен перехват соединения.</p>
       <div class="grid2">${[["fullscreen", "Полный экран"], ["multimon", "Все мониторы"], ["dynamic_resolution", "Разрешение по размеру окна"], ["clipboard", "Общий буфер обмена"], ["audio", "Звук"], ["admin", "Сессия администратора"]].map(([k, v]) => `<label class="check"><input type="checkbox" name="${k}" /> ${v}</label>`).join("")}</div>
+      <fieldset><legend>NetBird перед RDP</legend><label class="check"><input type="checkbox" name="use_netbird" /> Подключить NetBird перед запуском RDP</label>
+      <label>Профиль NetBird <select name="netbird_profile" disabled><option value="">Выберите профиль</option></select></label><p class="muted">RDP запустится только после подключения выбранной сети. Закрытие RDP не отключает NetBird.</p><p class="rdp-netbird-error err"></p></fieldset>
       <datalist id="rdp-groups"></datalist><p class="err form-err" role="alert"></p><div class="actions"><button value="cancel" formnovalidate>Отмена</button><button value="save" class="primary">Сохранить</button></div>
     </form></dialog></div>`;
   const list = root.querySelector<HTMLElement>(".rdp-list")!;
@@ -89,6 +97,7 @@ export function mountRdp(root: HTMLElement) {
   f("auth").onchange = sync;
   const setBound = (id: string, title?: string) => { bound = id; form.querySelector(".kp-bound")!.textContent = id ? title ?? titles.get(id) ?? "запись выбрана" : "запись не выбрана"; };
   form.querySelector<HTMLElement>("[data-a=pick]")!.onclick = async () => { const e = await pickEntry(); if (e) setBound(e.id, e.title); };
+  let netbirdLoad = 0;
   function open(p: Profile | null) {
     editing = p;
     form.reset();
@@ -96,15 +105,29 @@ export function mountRdp(root: HTMLElement) {
     for (const k of ["name", "group", "host", "port", "user", "domain", "auth", "width", "height", "scale", "cert"] as const) f(k).value = String(p?.[k] ?? DEFAULTS[k] ?? "");
     BOOLS.forEach((k) => f(k).checked = Boolean(p?.[k] ?? DEFAULTS[k]));
     setBound(p?.keepass_entry ?? "");
+    const token = ++netbirdLoad;
+    f("use_netbird").checked = Boolean(p?.netbird_profile);
+    f("netbird_profile").innerHTML = p?.netbird_profile ? `<option value="${esc(p.netbird_profile)}">${esc(p.netbird_profile)}</option>` : `<option value="">Выберите профиль</option>`;
+    f("netbird_profile").disabled = !f("use_netbird").checked;
+    f("netbird_profile").required = f("use_netbird").checked;
+    form.querySelector(".rdp-netbird-error")!.textContent = "";
+    void netbirdSnapshot().then((snap) => {
+      if (token !== netbirdLoad) return;
+      const missing = p?.netbird_profile && !snap.profiles.some((n) => n.id === p.netbird_profile);
+      f("netbird_profile").innerHTML = `<option value="">Выберите профиль</option>` + (missing ? `<option value="${esc(p!.netbird_profile!)}">${esc(p!.netbird_profile!)} · недоступен</option>` : "") + snap.profiles.map((n) => `<option data-no-i18n value="${esc(n.id)}">${esc(n.name)} · ${esc(n.id)}</option>`).join("");
+      f("netbird_profile").value = p?.netbird_profile ?? "";
+    }).catch((e) => { if (token === netbirdLoad && f("use_netbird").checked) form.querySelector(".rdp-netbird-error")!.textContent = String(e); });
     form.querySelector("datalist")!.innerHTML = [...new Set(profiles.map((p) => p.group).filter(Boolean))].map((g) => `<option value="${esc(g)}">`).join("");
     sync(); overlay(true); dialog.showModal();
   }
-  dialog.onclose = () => { f("secret").value = ""; f("clear_secret").checked = false; overlay(false); };
+  f("use_netbird").onchange = () => { f("netbird_profile").disabled = !f("use_netbird").checked; f("netbird_profile").required = f("use_netbird").checked; };
+  dialog.onclose = () => { ++netbirdLoad; f("secret").value = ""; f("clear_secret").checked = false; overlay(false); };
   form.addEventListener("submit", async (event) => {
     if ((event.submitter as HTMLButtonElement)?.value !== "save") return;
     event.preventDefault();
     const profile: Profile = {
       id: editing?.id ?? crypto.randomUUID(), name: f("name").value.trim(), group: f("group").value.trim(), host: f("host").value.trim(), port: Number(f("port").value), user: f("user").value.trim(), domain: f("domain").value.trim(), auth: f("auth").value, keepass_entry: f("auth").value === "keepass" ? bound : "", width: Number(f("width").value), height: Number(f("height").value), scale: Number(f("scale").value), cert: f("cert").value,
+      netbird_profile: f("use_netbird").checked ? f("netbird_profile").value : "",
       fullscreen: f("fullscreen").checked, multimon: f("multimon").checked, dynamic_resolution: f("dynamic_resolution").checked, clipboard: f("clipboard").checked, audio: f("audio").checked, admin: f("admin").checked,
     };
     const btn = event.submitter as HTMLButtonElement;

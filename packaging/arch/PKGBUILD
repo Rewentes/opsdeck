@@ -1,13 +1,13 @@
 # Package the binary built on Arch by rdp-arch.yml (or scripts/build-arch.sh).
 pkgname=opsdeck-rdp
-pkgver=0.8.0.rdp.1
+pkgver=0.8.2.rdp.1
 pkgrel=1
 pkgdesc='OpsDeck with FreeRDP 3 profiles, KeePass and keyring'
 arch=('x86_64')
 url='https://github.com/Rewentes/opsdeck'
 license=('MIT')
 depends=('gtk3' 'webkit2gtk-4.1' 'freerdp' 'libayatana-appindicator' 'xdg-utils')
-optdepends=('gnome-keyring: keyring password storage' 'kwallet: alternative Secret Service provider' 'xorg-xwayland: RDP windows on Wayland')
+optdepends=('netbird: VPN profiles and connection before RDP' 'gnome-keyring: keyring password storage' 'kwallet: alternative Secret Service provider' 'xorg-xwayland: RDP windows on Wayland')
 provides=('opsdeck')
 conflicts=('opsdeck' 'opsdeck-bin' 'opsdeck-git')
 options=('!strip')

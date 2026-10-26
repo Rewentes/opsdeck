@@ -2,7 +2,7 @@
 
 Upstream: https://github.com/LeoAlecksey/opsdeck (master).
 Personal version: https://github.com/Rewentes/opsdeck/tree/feature/rdp.
-Current upstream: `089e003` (0.8.0), integrated on 2026-10-21 with RDP and its monitor-arrow icon preserved.
+Current upstream: `c17df05` (0.8.2), integrated on 2026-10-26 with RDP and its monitor-arrow icon preserved.
 
 Initial base: `95b3d47266b337e6b354bdaf84f513c79a999742`, upstream 0.6.1, 2026-10-08.
 
@@ -71,3 +71,11 @@ sudo pacman -U packaging/arch/opsdeck-rdp-*.pkg.tar.zst
 ```
 
 `makepkg` must run as a normal user. The PKGBUILD packages the locally compiled executable, not a network download; Actions does the compilation in an Arch container before packaging.
+
+## NetBird profiles and RDP prerequisites
+
+Enable **NetBird** in the ⊞ module menu (enabled by default for new installs). The module lists the native `netbird profile list --show-id` profiles, including profiles created outside OpsDeck. Duplicate names are distinguished by IDs. Add/rename/remove profiles, set an optional management URL and dashboard URL, and connect/disconnect using the installed NetBird daemon. No sudo/service management, shell interpolation, setup keys, private config-file reads or credential import are used. NetBird keeps its own keys and browser SSO state. OpsDeck stores only optional URL overrides in `netbird.json`, with the shared atomic persistence helper. Existing profiles keep their own management URL unless explicitly overridden.
+
+In an RDP profile, check **Connect NetBird before starting RDP** and select the native profile. The backend switches/connects it and verifies both the active ID and connected daemon/management/IP state before starting FreeRDP. Authentication errors, timeouts and deleted profiles prevent RDP launch. Existing RDP profiles have no VPN prerequisite until explicitly enabled. Switching away from an already connected network requires confirmation in the UI. OpsDeck serializes its VPN mutations across windows; NetBird's own native UI can still change the daemon externally. Closing an RDP window leaves NetBird connected so other sessions keep their network.
+
+The installed NetBird 0.79.0 CLI was inspected read-only. Profiles require a CLI supporting `profile list --show-id`; login uses the native browser flow and has a bounded wait. The application does not change NetBird MDM/security policies. URL/metadata export does not migrate NetBird identities; RDP bindings must be reassigned if the native profile IDs differ on another computer.

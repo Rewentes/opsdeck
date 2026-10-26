@@ -55,3 +55,36 @@ test('session disconnect passes session identity, not PID', async ({ page, app }
   await page.locator('[data-stop=session-1]').click();
   expect((await app.called('rdp_disconnect')).args).toEqual({ id: 'session-1' });
 });
+test('NetBird binding is opt-in, saves the native profile ID, and can be cleared', async ({ page, app }) => {
+  await page.locator('.rdp-list [data-a=edit]').click();
+  const dlg = page.locator('.rdp-dialog');
+  await expect(dlg.locator('[name=use_netbird]')).not.toBeChecked();
+  await dlg.locator('[name=use_netbird]').check();
+  await dlg.locator('[name=netbird_profile]').selectOption('1234abcd');
+  await dlg.locator('[value=save]').click();
+  expect((await app.called('rdp_save')).args).toMatchObject({ profile: { netbird_profile: '1234abcd' } });
+  await app.override('rdp_list', [{ ...profile, netbird_profile: '1234abcd' }]);
+  await app.view('ssh'); await app.view('rdp');
+  await page.locator('.rdp-list [data-a=edit]').click();
+  await expect(dlg.locator('[name=use_netbird]')).toBeChecked();
+  await dlg.locator('[name=use_netbird]').uncheck();
+  await dlg.locator('[value=save]').click();
+  await expect.poll(async () => (await app.calls('rdp_save')).at(-1)?.args).toMatchObject({ profile: { netbird_profile: '' } });
+});
+test('deleted NetBird binding prevents RDP and even the password prompt', async ({ page, app }) => {
+  await app.override('rdp_list', [{ ...profile, netbird_profile: 'deadbeef' }]);
+  await app.view('ssh'); await app.view('rdp');
+  await page.locator('.rdp-list [data-a=connect]').click();
+  await expect(page.locator('.toast').last()).toContainText('NetBird');
+  expect(await app.calls('rdp_connect')).toHaveLength(0);
+  await expect(page.locator('.rdp-password')).toHaveCount(0);
+});
+test('VPN preflight failure is surfaced without claiming FreeRDP started', async ({ page, app }) => {
+  await app.override('rdp_list', [{ ...profile, auth: 'keepass', netbird_profile: '1234abcd' }]);
+  await page.evaluate(() => { (window as any).__DEMO_OVERRIDES.rdp_connect = () => { throw new Error('NetBird connection failed'); }; });
+  await app.view('ssh'); await app.view('rdp');
+  await page.locator('.rdp-list [data-a=connect]').click();
+  await expect(page.locator('.toast').last()).toContainText('NetBird connection failed');
+  expect((await app.called('rdp_connect')).args).toEqual({ id: profile.id, password: null });
+  await expect(page.locator('.toast', { hasText: 'FreeRDP запущен отдельным окном' })).toHaveCount(0);
+});

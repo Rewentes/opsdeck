@@ -30,6 +30,7 @@ struct PartDef {
 
 const PARTS: &[PartDef] = &[
     PartDef { id: "settings", label: "Настройки и интерфейс", files: &["settings.json", "ai.json", "alerts-config.json", "k8s.json", "vaults.json"], dirs: &[], default: true, warn: "" },
+    PartDef { id: "netbird", label: "Адреса серверов NetBird", files: &["netbird.json"], dirs: &[], default: false, warn: "Профили и ключи NetBird не переносятся. Привязки RDP используют локальные ID" },
     PartDef { id: "rdp", label: "RDP-хосты и группы", files: &["rdp.json"], dirs: &[], default: true, warn: "Пароли keyring не переносятся" },
     PartDef { id: "ssh", label: "SSH-хосты и группы", files: &["ssh.json", "ssh_groups.json"], dirs: &[], default: true, warn: "" },
     PartDef { id: "connectors", label: "Веб-панели и источники алертов", files: &["connectors.json"], dirs: &[], default: true, warn: "" },
@@ -311,7 +312,8 @@ pub fn import_into(archive: &Path, parts: &[String], config: &Path, notes_dest: 
         if f.is_dir() {
             continue;
         }
-        let name = f.name().to_string();
+        // zip 9: имя внутри архива может быть и не UTF-8, поэтому это Result
+        let name = f.name().map_err(|e| e.to_string())?.to_string();
         let target = if name == UI {
             if want("settings") {
                 let mut s = String::new();
