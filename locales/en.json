@@ -2192,5 +2192,6 @@
   "Некорректный ID профиля NetBird": "Invalid NetBird profile ID",
   "Адреса серверов NetBird": "NetBird server addresses",
   "Профили и ключи NetBird не переносятся. Привязки RDP используют локальные ID": "NetBird profiles and keys are not transferred. RDP bindings use local IDs",
-  "Неоднозначные ID NetBird. Выберите профиль в приложении NetBird": "Ambiguous NetBird IDs. Select the profile in the NetBird app"
+  "Неоднозначные ID NetBird. Выберите профиль в приложении NetBird": "Ambiguous NetBird IDs. Select the profile in the NetBird app",
+  "Подключение…": "Connecting…"
 }

@@ -42,6 +42,7 @@ const connecting = new Set<string>();
 async function connect(p: Profile) {
   if (connecting.has(p.id)) return;
   connecting.add(p.id);
+  window.dispatchEvent(new Event("rdp-connecting-changed"));
   let password: string | null = null;
   try {
     if (p.netbird_profile && !await confirmNetbird(p.netbird_profile)) return;
@@ -51,7 +52,7 @@ async function connect(p: Profile) {
     window.dispatchEvent(new Event("rdp-sessions-changed"));
     toast("FreeRDP запущен отдельным окном");
   } catch (e) { toast(String(e), "err"); }
-  finally { password = null; connecting.delete(p.id); }
+  finally { password = null; connecting.delete(p.id); window.dispatchEvent(new Event("rdp-connecting-changed")); }
 }
 registerProvider(async () => (await invoke<Profile[]>("rdp_list")).map((p) => ({ group: "RDP", title: `RDP: ${p.name}`, hint: `${p.group ? p.group + " · " : ""}${p.host}:${p.port}`, run: () => connect(p) })));
 
@@ -142,7 +143,7 @@ export function mountRdp(root: HTMLElement) {
     const q = filter.value.trim().toLowerCase();
     const groups = new Map<string, Profile[]>();
     profiles.filter((p) => `${p.name} ${p.host} ${p.user} ${p.domain} ${p.group}`.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name)).forEach((p) => groups.set(p.group, [...(groups.get(p.group) ?? []), p]));
-    list.innerHTML = [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([group, hosts]) => `<details class="ssh-group" data-g="${esc(group)}" ${q || !closed.has(group) ? "open" : ""}><summary><span class="ssh-group-title">${esc(group || "Без группы")}</span><span class="conn-row-count">${hosts.length}</span>${group ? `<button class="icon" data-a="rename" title="Переименовать группу">${icon("edit", 14)}</button>` : ""}</summary><table class="res mt-table"><tbody>${hosts.map((p) => `<tr data-id="${esc(p.id)}"><td class="mt-name">${esc(p.name)}</td><td class="mono">${esc(p.user)}${p.user ? "@" : ""}${esc(p.host)}:${p.port}</td><td class="muted">${esc(p.auth === "keepass" ? titles.get(p.keepass_entry) ?? "KeePass" : AUTH[p.auth])}</td><td class="mt-acts"><button class="primary" data-a="connect" ${status.available ? "" : "disabled"}>Подключиться</button><button class="icon" data-a="edit" title="Изменить профиль и группу">${icon("edit", 14)}</button><button class="icon danger" data-a="del" title="Удалить">${icon("trash", 14)}</button></td></tr>`).join("")}</tbody></table></details>`).join("") || `<p class="muted">${q ? "Ничего не найдено." : "Пока пусто — добавьте RDP-хост."}</p>`;
+    list.innerHTML = [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([group, hosts]) => `<details class="ssh-group" data-g="${esc(group)}" ${q || !closed.has(group) ? "open" : ""}><summary><span class="ssh-group-title">${esc(group || "Без группы")}</span><span class="conn-row-count">${hosts.length}</span>${group ? `<button class="icon" data-a="rename" title="Переименовать группу">${icon("edit", 14)}</button>` : ""}</summary><table class="res mt-table"><tbody>${hosts.map((p) => `<tr data-id="${esc(p.id)}"><td class="mt-name">${esc(p.name)}</td><td class="mono">${esc(p.user)}${p.user ? "@" : ""}${esc(p.host)}:${p.port}</td><td class="muted">${esc(p.auth === "keepass" ? titles.get(p.keepass_entry) ?? "KeePass" : AUTH[p.auth])}</td><td class="mt-acts"><button class="primary" data-a="connect" ${status.available && !connecting.has(p.id) ? "" : "disabled"}>${connecting.has(p.id) ? "Подключение…" : "Подключиться"}</button><button class="icon" data-a="edit" title="Изменить профиль и группу">${icon("edit", 14)}</button><button class="icon danger" data-a="del" title="Удалить">${icon("trash", 14)}</button></td></tr>`).join("")}</tbody></table></details>`).join("") || `<p class="muted">${q ? "Ничего не найдено." : "Пока пусто — добавьте RDP-хост."}</p>`;
     list.querySelectorAll("details").forEach((d) => d.ontoggle = () => { if (!q) { d.open ? closed.delete(d.dataset.g!) : closed.add(d.dataset.g!); saveClosed(); } });
   }
   async function sessions() {
@@ -182,6 +183,7 @@ export function mountRdp(root: HTMLElement) {
   filter.oninput = draw;
   root.querySelector<HTMLElement>("[data-a=add]")!.onclick = () => open(null);
   window.addEventListener("view-shown", (e) => { if ((e as CustomEvent).detail === "rdp") void load(); });
+  window.addEventListener("rdp-connecting-changed", draw);
   window.addEventListener("rdp-sessions-changed", () => { void sessions().catch(() => {}); });
   void listen<{ success: boolean; code: number | null }>("rdp-exit", (e) => {
     if (!e.payload.success) toast(`FreeRDP завершился с кодом ${e.payload.code ?? "?"}. Проверьте адрес, пароль, сертификат и XWayland.`, "err");

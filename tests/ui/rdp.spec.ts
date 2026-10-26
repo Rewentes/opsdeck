@@ -88,3 +88,16 @@ test('VPN preflight failure is surfaced without claiming FreeRDP started', async
   expect((await app.called('rdp_connect')).args).toEqual({ id: profile.id, password: null });
   await expect(page.locator('.toast', { hasText: 'FreeRDP запущен отдельным окном' })).toHaveCount(0);
 });
+
+test('RDP shows pending VPN/startup and prevents duplicate launches', async ({ page, app }) => {
+  await app.override('rdp_list', [{ ...profile, auth: 'keepass', netbird_profile: '1234abcd' }]);
+  await page.evaluate(() => { (window as any).__DEMO_OVERRIDES.rdp_connect = () => new Promise((r) => { (window as any).__finishRdp = () => r({ id: 'pending', pid: 22 }); }); });
+  await app.view('ssh'); await app.view('rdp');
+  await page.locator('.rdp-list [data-a=connect]').click();
+  await app.called('rdp_connect');
+  await expect(page.locator('.rdp-list [data-a=connect]')).toBeDisabled();
+  await expect(page.locator('.rdp-list [data-a=connect]')).toContainText('Подключение');
+  expect(await app.calls('rdp_connect')).toHaveLength(1);
+  await page.evaluate(() => (window as any).__finishRdp());
+  await expect(page.locator('.rdp-list [data-a=connect]')).toBeEnabled();
+});
