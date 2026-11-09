@@ -4,11 +4,14 @@
 //   window.__demoEmit(e, p)   — fire a backend event
 //   window.__demoListeners    — event -> [callback id] of the listeners still subscribed
 //   window.__DEMO_OVERRIDES   — { command: value | (args) => value } replaces an answer
-//   window.__DEMO_LANG        — "ru" (default) or "en": UI language and demo texts
+//   window.__DEMO_LANG        — "ru" (default) or "en": UI language and demo texts; "auto": the
+//                               app picks the language itself, demo texts follow navigator.language
 //   window.__DEMO_WIN         — метка окна: "main" (по умолчанию) или "pop-<раздел>"
+//   window.__DEMO_PROFILE     — окружение окна, как его отдаёт profile.rs ({ id, name, color, several, picker, notice })
 (() => {
-  const LANG = window.__DEMO_LANG || "ru";
-  try { localStorage.setItem("opsdeck.lang", LANG); } catch {}
+  const AUTO = window.__DEMO_LANG === "auto";
+  const LANG = AUTO ? (/^ru|^be|^uk|^kk/i.test(navigator.language) ? "ru" : "en") : window.__DEMO_LANG || "ru";
+  if (!AUTO) try { localStorage.setItem("opsdeck.lang", LANG); } catch {}
   const L = (ru, en) => (LANG === "ru" ? ru : en);
   const now = Date.now();
   const iso = (msAgo) => new Date(now - msAgo).toISOString();
@@ -265,6 +268,15 @@ lint:
 
   const settings = { keepass_path: "/home/demo/Passwords.kdbx", keepass_keyfile: "", keepass_lock_minutes: 0, keepass_keep_open: true, obsidian_vault: "/home/demo/notes", winbox_path: "", k8s_include_system: false, update_auto_check: true, ai_host: "", ai_port: "", ai_model: "", ai_key_saved: false, term_shell: "" };
 
+  // ---- окружения ----
+  const PROFILE = window.__DEMO_PROFILE || { id: "default" };
+  const profiles = [
+    { id: "default", name: "", color: "", open: false },
+    { id: "stage", name: L("Стенд", "Stage"), color: "#f2b65c", open: false },
+    { id: "prod", name: L("Прод", "Prod"), color: "#ef5f6b", open: true },
+  ];
+  let profileStart = "";
+
   const R = {
     transfer_parts: [
       { id: "settings", label: "Настройки и интерфейс", files: 5, bytes: 9000, default: true, warn: "" },
@@ -280,6 +292,11 @@ lint:
       notes_here: "/home/demo/notes" },
     transfer_import: { files: 1845, backup: "/home/demo/.config/opsdeck/backup-20261008-101500", ui: JSON.stringify({ "opsdeck.term.theme": "Dracula" }) },
     win_shells: [], wt_settings: JSON.stringify({ profiles: {}, schemes: [{ name: "Demo WT", background: "#101820", foreground: "#e0e0e0", purple: "#aa66ff", cursorColor: "#ffcc00" }] }),
+    // окружения: список живёт в моке, создание добавляет в него (profile.rs)
+    profiles_list: () => ({ profiles: profiles.map((p) => ({ ...p, current: !PROFILE.picker && p.id === PROFILE.id })), start: profileStart, picker: !!PROFILE.picker }),
+    profile_create: ({ name, color }) => { const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "env"; profiles.push({ id, name, color, open: false }); return id; },
+    profile_start_set: ({ id }) => { profileStart = id; return null; },
+    profile_open: null, profile_pick: null, profile_update: null,
     app_version: "0.5.0", set_lang: null, log_ui: null, settings_get: settings, settings_detect: { keepass: [], obsidian: [], winbox: [] }, logs_path: "/home/demo/.local/share/opsdeck/logs",
     k8s_contexts: [ctx, ctx2], k8s_system_contexts: [], k8s_prefs_get: { hidden: [], readonly: [`${ctx.file}|prod-eu`] }, k8s_crds: [], k8s_metrics: usage, k8s_helm_releases: [], k8s_object_events: [],
     netbird_snapshot: { profiles: [{ id: "default", name: "default", active: true, management_url: "", admin_url: "" }, { id: "1234abcd", name: "Office", active: false, management_url: "https://vpn.example.com", admin_url: "" }], status: { connected: false, state: "Idle", management_url: "https://api.netbird.io:443", ip: "" } },
@@ -364,10 +381,11 @@ lint:
     code_git_log: commits, code_git_branches: branches, fs_git_status: { root: proj, branch: "feature/monitoring", files: { "main.tf": "M", "helm/values-prod.yaml": "M", "outputs.tf": "A" } },
     update_check: { available: false, version: "0.5.0", notes: "", date: "" }, releases_list: [],
     ai_status: { engine: true, model: true, running: true, installing: false, size: 5.9e9, download_size: 0, dir: "/home/demo/.local/share/opsdeck/ai", supported: true, model_title: "Мощная — Qwen3.5 9B" },
-    ai_models: { selected: "qwen3.5-9b", custom_path: "", ram_total: 32 * GiB, gpu: true, gpu_supported: true, vulkan_found: true, metal: false, gpu_failed: false, models: [
+    ai_models: { selected: "qwen3.5-9b", custom_path: "", ram_total: 32 * GiB, gpu: true, gpu_supported: true, vulkan_found: true, metal: false, gpu_failed: false, ctx: 16384, ctx_options: [4096, 8192, 16384, 32768, 65536], models: [
       { id: "qwen2.5-coder-1.5b", title: "Лёгкая — Qwen2.5-Coder 1.5B", size: 1117320768, ram_gb: 4, installed: true },
       { id: "qwen3.5-4b", title: "Средняя — Qwen3.5 4B", size: 2740937888, ram_gb: 8, installed: false },
       { id: "qwen3.5-9b", title: "Мощная — Qwen3.5 9B", size: 5680522464, ram_gb: 16, installed: true },
+      { id: "qwen3.8-27b", title: "Сильная — Qwen3.8 27B", size: 16464440224, ram_gb: 24, installed: false, fit: { level: "good", why: "" } },
       { id: "qwen3.6-35b-a3b", title: "Большая — Qwen3.6 35B-A3B (MoE)", size: 22134528992, ram_gb: 32, installed: false } ] },
     ai_command: { command: "kubectl -n shop rollout restart deploy/worker && kubectl -n shop rollout status deploy/worker --timeout=120s", from_notes: ["kubectl -n shop rollout restart deploy/worker", "kubectl -n shop rollout status deploy/worker --timeout=120s"], elapsed_ms: 1840 },
     ports_listening: [], alerts_poll_now: [], kp_copy: null,
@@ -404,6 +422,8 @@ lint:
     return want.slice(1).every((w) => { while (i < args.length && args[i] !== w) i++; return i++ < args.length; });
   };
 
+  // окружение окна: бэкенд кладёт его скриптом инициализации до загрузки страницы
+  if (window.__DEMO_PROFILE) window.__OPSDECK_PROFILE__ = window.__DEMO_PROFILE;
   window.__TAURI_INTERNALS__ = {
     metadata: { currentWindow: { label: WIN }, currentWebview: { label: WIN, windowLabel: WIN } },
     transformCallback: (cb) => { const id = ++cbid; window[`_${id}`] = cb; return id; },

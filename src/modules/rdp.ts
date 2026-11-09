@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { confirmNetbird, netbirdSnapshot } from "./netbird";
-import { helpBtn } from "./help";
+import { helpBtn } from "./help-btn";
 import { icon } from "./icons";
 import { kpEntries, kpStatus, pickEntry } from "./keepass";
 import { registerProvider } from "./palette";

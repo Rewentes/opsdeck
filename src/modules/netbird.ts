@@ -1,12 +1,41 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { ask, esc, overlay, toast } from "./ui";
 import { icon } from "./icons";
 import { registerProvider } from "./palette";
+import { winLabel } from "./winid";
 
 export type NetbirdProfile = { id: string; name: string; active: boolean; management_url: string; admin_url: string };
 export type NetbirdSnapshot = { profiles: NetbirdProfile[]; status: { connected: boolean; state: string; management_url: string; ip: string } };
 export const netbirdSnapshot = () => invoke<NetbirdSnapshot>("netbird_snapshot");
+type LoginPrompt = { url: string; code: string | null };
+let loginListener: Promise<unknown> | undefined;
+let loginPanel: HTMLElement | undefined;
+function showLogin(prompt: LoginPrompt | null) {
+  if (loginPanel) { loginPanel.remove(); overlay(false); }
+  loginPanel = undefined;
+  if (!prompt) return;
+  const panel = document.createElement("aside");
+  panel.className = "netbird-login card";
+  panel.innerHTML = `<strong>Вход в NetBird</strong><p>Если браузер не открылся, откройте ссылку вручную.</p>
+    <label>Ссылка для входа <input class="mono" data-no-i18n readonly /></label>
+    <label class="netbird-login-code" hidden>Код входа <input class="mono" data-no-i18n readonly /></label>
+    <button class="primary" type="button">Открыть в браузере</button>`;
+  const [url, code] = panel.querySelectorAll<HTMLInputElement>("input");
+  url.value = prompt.url;
+  if (prompt.code) { code.value = prompt.code; code.parentElement!.hidden = false; }
+  for (const input of [url, code]) input.onfocus = () => input.select();
+  panel.querySelector("button")!.onclick = () => {
+    void invoke("open_external", { url: prompt.url }).catch(() => toast("Не удалось открыть браузер. Скопируйте ссылку для входа.", "err"));
+  };
+  document.body.append(panel);
+  overlay(true);
+  loginPanel = panel;
+}
+
 export async function confirmNetbird(id: string): Promise<boolean> {
+  loginListener ??= listen<LoginPrompt | null>("netbird-login", ({ payload }) => showLogin(payload), { target: { kind: "WebviewWindow", label: winLabel() } }).catch(() => { loginListener = undefined; });
+  await loginListener;
   const snap = await netbirdSnapshot();
   if (!snap.profiles.some((p) => p.id === id)) throw new Error("Привязанный профиль NetBird не найден");
   const current = snap.profiles.find((p) => p.active);

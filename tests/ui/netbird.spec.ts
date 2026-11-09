@@ -47,3 +47,21 @@ test("in-progress connect disables repeat operations", async ({ app, page }) => 
   await page.evaluate(() => (window as any).__finishNetbird());
   await expect(page.locator('[data-nb=add]')).toBeEnabled();
 });
+
+
+test("browser fallback is available during login and disappears afterwards", async ({ app, page }) => {
+  await page.evaluate(() => { (window as any).__DEMO_OVERRIDES.netbird_connect = () => new Promise((resolve) => { (window as any).__finishNetbird = resolve; }); });
+  await app.view("netbird");
+  await page.locator('tr[data-nb-id="1234abcd"] [data-nb=connect]').click();
+  await app.called("netbird_connect");
+  const url = "https://auth.example.com/device?session=fake";
+  await app.emit("netbird-login", { url, code: "ABCD-EFGH" });
+  const panel = page.locator(".netbird-login");
+  await expect(panel.locator("input").first()).toHaveValue(url);
+  await expect(panel.locator("input").last()).toHaveValue("ABCD-EFGH");
+  await panel.getByRole("button", { name: "Открыть в браузере" }).click();
+  expect((await app.called("open_external")).args).toEqual({ url });
+  await app.emit("netbird-login", null);
+  await expect(panel).toHaveCount(0);
+  await page.evaluate(() => (window as any).__finishNetbird());
+});

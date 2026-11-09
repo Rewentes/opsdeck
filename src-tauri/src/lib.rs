@@ -26,6 +26,7 @@ mod passbolt;
 mod popout;
 mod ports;
 mod process;
+mod profile;
 mod pty;
 mod settings;
 mod snippets;
@@ -33,6 +34,7 @@ mod ssh;
 mod rdp;
 mod netbird;
 mod sysmon;
+mod sysmon_session;
 mod store;
 mod tasks;
 mod tools;
@@ -54,6 +56,7 @@ fn main_window(app: &tauri::App) -> tauri::Result<()> {
     if let Ok(extra) = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS") {
         builder = builder.additional_browser_args(&format!("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection {extra}"));
     }
+    let builder = profile::isolate_window(builder).title(profile::app_title()).initialization_script(profile::init_script());
     builder.build()?;
     Ok(())
 }
@@ -62,6 +65,8 @@ pub fn run() {
     // PATH сеанса рабочего стола беднее того, что в терминале: ярлык не читает ~/.bashrc
     #[cfg(unix)]
     process::fix_macos_path();
+    // до сборки приложения: от окружения зависят папка настроек, имя журнала и данные вебвью
+    profile::init();
 
     tauri::Builder::default()
         .plugin(diag::log_plugin())
@@ -87,7 +92,12 @@ pub fn run() {
             diag::install_panic_hook();
             main_window(app)?;
             diag::start_watchdog(app.handle().clone());
-            log::info!("OpsDeck {} started", app.package_info().version);
+            // окно выбора окружения: ни одно окружение ещё не открыто, его фоновые задачи не нужны
+            if profile::is_picker() {
+                log::info!("OpsDeck {} started: choosing an environment", app.package_info().version);
+                return Ok(());
+            }
+            log::info!("OpsDeck {} started{}", app.package_info().version, profile::current().map(|p| format!(" (environment {p})")).unwrap_or_default());
             keepass::spawn_autolock(app.handle().clone());
             passbolt::spawn_autolock(app.handle().clone());
             tasks::spawn_reminders(app.handle().clone());
@@ -122,6 +132,7 @@ pub fn run() {
             pty::shell_commands,
             editor::fs_list,
             editor::fs_git_status,
+            editor::fs_git_stamp,
             editor::fs_resolve,
             editor::fs_reveal,
             editor::editors_detect,
@@ -166,6 +177,12 @@ pub fn run() {
             k8s::k8s_argo_action,
             k8s::k8s_crds,
             k8s::k8s_object_events,
+            profile::profiles_list,
+            profile::profile_create,
+            profile::profile_update,
+            profile::profile_start_set,
+            profile::profile_open,
+            profile::profile_pick,
             settings::settings_get,
             settings::settings_set,
             settings::settings_detect,
@@ -217,6 +234,7 @@ pub fn run() {
             ai::ai_remove_model,
             ai::ai_pick_model,
             ai::ai_set_gpu,
+            ai::ai_set_ctx,
             ai::ai_command,
             ai::ai_test,
             winshell::win_shells,
@@ -231,6 +249,9 @@ pub fn run() {
             transfer::transfer_import,
             transfer::app_restart,
             aichat::ai_chat_stop,
+            aichat::ai_chat_history_load,
+            aichat::ai_chat_history_save,
+            aichat::ai_chat_history_clear,
             winshell::wt_settings,
             winbox_import::mt_import_scan,
             winbox_import::mt_import,
@@ -265,6 +286,8 @@ pub fn run() {
             tasks::task_delete,
             tasks::task_format,
             tasks::task_add,
+            tasks::task_describe,
+            tasks::task_add_sub,
             tasks::task_snooze,
             notes::note_search,
             notes::note_open_obsidian,
@@ -334,6 +357,7 @@ pub fn run() {
             ssh::ssh_key_fix_perms,
             ssh::ssh_save,
             ssh::ssh_delete,
+            ssh::ssh_note_set,
             ssh::ssh_connect,
             ssh::ssh_local_user,
             ssh::ssh_config_group,

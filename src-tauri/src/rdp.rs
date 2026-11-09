@@ -233,6 +233,7 @@ fn payload(p: &RdpProfile, user: &str, password: &str) -> Result<Zeroizing<Strin
 #[tauri::command]
 pub async fn rdp_connect(
     app: AppHandle,
+    window: tauri::WebviewWindow,
     kp: State<'_, KeepassState>,
     state: State<'_, RdpState>,
     netbird: State<'_, crate::netbird::NetbirdState>,
@@ -246,7 +247,7 @@ pub async fn rdp_connect(
         .ok_or("Профиль не найден")?;
     validate(&p)?;
     let _vpn_guard = if p.netbird_profile.is_empty() { None } else {
-        Some(crate::netbird::prepare(&netbird, &p.netbird_profile).await?)
+        Some(crate::netbird::prepare(&netbird, &p.netbird_profile, &window).await?)
     };
     let (user, pass) = match p.auth.as_str() {
         "keepass" => {
